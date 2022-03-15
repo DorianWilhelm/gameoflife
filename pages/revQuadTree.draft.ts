@@ -15,8 +15,7 @@ class Cell {
     this.state = state;
   }
 
-  get id() {
-    // :string
+  get id(): string {
     return `xy${this.x}_${this.y}`;
   }
 }
@@ -71,7 +70,13 @@ type Child = 'neChild' | 'nwChild' | 'swChild' | 'seChild';
 
 export class RevQuadTree {
   static canopy: RevQuadTree; // :RevQuadTree
-  static children: Array<Child> = ['neChild', 'nwChild', 'swChild', 'seChild'];
+  static children: Array<Child> = ['nwChild', 'neChild', 'seChild', 'swChild'];
+  static growthFactors = {
+    'nwChild': [1, -1],
+    'neChild': [1, 1],
+    'seChild': [-1, 1],
+    'swChild': [-1, -1]
+  }
 
   static setCanopy(node: RevQuadTree) {
     if (!RevQuadTree.canopy) {
@@ -91,14 +96,16 @@ export class RevQuadTree {
   seChild: RevQuadTree | null; // :revQuadTree
   height: number; // contained in boundary?
   isLeaf: boolean; // :boolean
+  growthDirection: string;
   chunk: Record<string, Cell>; // :Record<string, Cell>
 
-  constructor(boundary: Boundary, parent = null, isLeaf = false, height = 0) {
+  constructor(boundary: Boundary, parent = null, isLeaf = false, height = 0, growthDirection = 'nwChild') {
     this.boundary = boundary;
     this.isLeaf = isLeaf;
     this.parent = parent;
     this.chunk = {};
     this.height = height;
+    this.growthDirection = growthDirection;
 
     if (this.isLeaf) {
       this.chunk = {};
@@ -115,37 +122,62 @@ export class RevQuadTree {
     // :RevQuadTree
   }
 
-  climbable(height = 2) {
-    // :boolean
+  climbable(height = 2): number {
     if (height) {
       if (this.parent) {
-        return this.parent.climb(height - 1);
-      } else {
-        return false;
+        return this.parent.climbable(height - 1);
       }
     }
-
-    return true;
+    return height;
   }
 
-  growUp(levels = 2, canGrow = false) {
-    // :RevQuadTree
-    if (canGrow) {
-    }
+  growUp(levels = 2, canGrow = false, ) {
+    if(canGrow){
+      const newGrowthDirection = this.growthDirection === 'nwChild' ? 'seChild' : 'nwChild';
 
-    if (this.climbable(levels)) {
-      if (levels) {
-        this.parent = new RevQuadTree(new Boundary());
-        this.parent['neChild'] = this;
-        return this.parent.growUp(levels - 1);
+      const [cx, cy] = this.boundary.center
+      const growthFactor = RevQuadTree.growthFactors[this.growthDirection]
+
+      const newCenter = [cx + growthFactor[0]*(this.boundary.width/2), cy + growthFactor[1]*(this.boundary.height/2)]
+      parentBoundary = new Boundary(newCenter, this.boundary.width*2, this.boundary.height*2)
+
+      this.parent = new RevQuadTree(
+        parentBoundary,
+        null,
+        false,
+        this.height+1,
+        newGrowthDirection
+      );
+
+      this.parent[this.growthDirection] = this;
+
+      if(levels-1){
+        return this.parent.growUp(levels - 1, true);
       } else {
-        this.parent = new RevQuadTree(new Boundary());
-        this.parent['swChild'] = this;
         return this.parent;
       }
     }
 
-    return this.parent.parent;
+    let height = 0;
+    const levelsMissing = this.climbable(levels);
+
+    if(levelsMissing) {
+      height = levels-levelsMissing
+    } else {
+      height = levels
+    }
+
+    const ancestor = Array.from({length: height}).reduce( (accum) => {
+      //@ts-ignore
+      return accum.parent
+    }, this)
+
+    if(levelsMissing){
+      //@ts-ignore
+      ancestor.growUp(levelsMissing, true)
+    }
+
+    return ancestor;
   }
 
   insert(cell: Cell): Boolean {
