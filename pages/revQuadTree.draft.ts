@@ -131,15 +131,15 @@ export class RevQuadTree {
     return height;
   }
 
-  growUp(levels = 2, canGrow = false, ) {
+  growUp(levels = 2, canGrow = false, ): RevQuadTree {
     if(canGrow){
       const newGrowthDirection = this.growthDirection === 'nwChild' ? 'seChild' : 'nwChild';
 
       const [cx, cy] = this.boundary.center
       const growthFactor = RevQuadTree.growthFactors[this.growthDirection]
 
-      const newCenter = [cx + growthFactor[0]*(this.boundary.width/2), cy + growthFactor[1]*(this.boundary.height/2)]
-      parentBoundary = new Boundary(newCenter, this.boundary.width*2, this.boundary.height*2)
+      const newCenter: Coordinate = [cx + growthFactor[0]*(this.boundary.width/2), cy + growthFactor[1]*(this.boundary.height/2)]
+      const parentBoundary = new Boundary(newCenter, this.boundary.width*2, this.boundary.height*2)
 
       this.parent = new RevQuadTree(
         parentBoundary,
