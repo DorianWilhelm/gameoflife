@@ -1,15 +1,50 @@
 import type { NextPage } from 'next';
-import { RefObject, useRef } from 'react';
+import { RefObject, useEffect, useRef } from 'react';
 
 type Update = {
   id: string;
   action: 'kill' | 'resurrect';
 };
-function drawCells(
+type Coordinate = [number, number];
+function getCoordinate(id: string): [number, number] {
+  const splitId = id.replace('xy_', '').split('_');
+  return [Number(splitId[0]), Number(splitId[1])];
+}
+function drawCell(
   ctx: CanvasRenderingContext2D,
-  coordinate: number[],
+  coordinate: Coordinate,
   resolution: number,
-  cell: boolean
+  cell: boolean,
+  playerCoordinate: Coordinate,
+  visibleWorld: VisibleWorld
+) {
+  // if (
+  //   coordinate[0] >= visibleWorld.x[0] &&
+  //   coordinate[0] <= visibleWorld.x[1] &&
+  //   coordinate[1] >= visibleWorld.y[0] &&
+  //   coordinate[1] <= visibleWorld.y[1]
+  // ) {
+  if (
+    coordinate[0] !== playerCoordinate[0] ||
+    coordinate[1] !== playerCoordinate[1]
+  ) {
+    ctx.beginPath();
+    ctx.rect(
+      coordinate[0] * resolution,
+      coordinate[1] * resolution,
+      resolution,
+      resolution
+    );
+    ctx.fillStyle = cell ? 'green' : 'white';
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawPlayer(
+  ctx: CanvasRenderingContext2D,
+  coordinate: Coordinate,
+  resolution: number
 ) {
   ctx.beginPath();
   ctx.rect(
@@ -18,7 +53,7 @@ function drawCells(
     resolution,
     resolution
   );
-  ctx.fillStyle = cell ? 'green' : 'white';
+  ctx.fillStyle = 'red';
   ctx.fill();
   ctx.stroke();
 }
@@ -42,6 +77,11 @@ function getLiveCells(grid: number[][]) {
   );
   return world;
 }
+
+type VisibleWorld = {
+  x: [number, number];
+  y: [number, number];
+};
 class game {
   liveCells: Record<string, boolean>;
   world: number[][];
@@ -49,8 +89,12 @@ class game {
   canvas: RefObject<HTMLCanvasElement>;
   width: number;
   height: number;
+  ROWS: number;
+  COLS: number;
   resolution: number;
   requestId: number;
+  player: Coordinate;
+  visibleWorld: VisibleWorld;
 
   constructor(
     width: number,
@@ -65,7 +109,14 @@ class game {
     this.width = width;
     this.height = height;
     this.resolution = resolution;
+    this.ROWS = height / resolution;
+    this.COLS = width / resolution;
     this.requestId = 0;
+    this.player = [0, 0];
+    this.visibleWorld = {
+      x: [0, this.COLS],
+      y: [0, this.ROWS],
+    };
   }
   checkUpdateRules(
     id: string,
@@ -90,7 +141,6 @@ class game {
   }
   computeUpdates(
     coordinate: number[],
-    hoodRadius: number,
     cellUpdateMemo: Record<string, boolean>,
     stop: boolean
   ): Update | Update[] {
@@ -156,12 +206,12 @@ class game {
     } else {
       neighborhood.push(coordinate);
       for (const cell of neighborhood) {
-        cellUpdates.push(this.computeUpdates(cell, 0, cellUpdateMemo, true));
+        cellUpdates.push(this.computeUpdates(cell, cellUpdateMemo, true));
       }
     }
     return cellUpdates.flat();
   }
-  poop() {
+  updateGameState() {
     const ctx = this.canvas?.current?.getContext('2d');
     const cellUpdateMemo = {};
     let cellUpdates = [];
@@ -171,68 +221,120 @@ class game {
         .replace('xy_', '')
         .split('_')
         .map((elem) => Number(elem));
-      cellUpdates.push(
-        this.computeUpdates(coordinate, 0, cellUpdateMemo, false)
-      );
+      cellUpdates.push(this.computeUpdates(coordinate, cellUpdateMemo, false));
     }
 
     cellUpdates = cellUpdates.flat();
 
-    console.log('woah');
-    console.log('cellUpdates!!!: ', cellUpdates);
-
     for (const cellUpdate of cellUpdates) {
-      const id: string = cellUpdate.id;
-      console.log('hi i am going over my updates now');
-
-      const coordinate = id
-        .replace('xy_', '')
-        .split('_')
-        .map((elem) => Number(elem));
+      // const coordinate = getCoordinate(cellUpdate.id);
 
       switch (cellUpdate.action) {
         case 'resurrect':
-          this.liveCells[id] = true;
-          if (ctx) {
-            drawCells(ctx, coordinate, this.resolution, true);
-          }
+          this.liveCells[cellUpdate.id] = true;
+          // if (ctx) {
+          //   drawCell(
+          //     ctx,
+          //     coordinate,
+          //     this.resolution,
+          //     true,
+          //     this.player,
+          //     this.visibleWorld
+          //   );
+          // }
           break;
         case 'kill':
-          delete this.liveCells[id];
-          if (ctx) {
-            drawCells(ctx, coordinate, this.resolution, false);
-          }
+          delete this.liveCells[cellUpdate.id];
+          // if (ctx) {
+          //   drawCell(
+          //     ctx,
+          //     coordinate,
+          //     this.resolution,
+          //     false,
+          //     this.player,
+          //     this.visibleWorld
+          //   );
+          // }
           break;
       }
+    }
+    if (ctx) {
+      console.log(this.visibleWorld);
+      const arrayOfCoords = Array.from(
+        Array(this.ROWS * this.COLS).map((el) => {})
+      );
+      // const arrayOfXCoords = Array.from(
+      //   Array(this.visibleWorld.x[1] - this.visibleWorld.x[0] - 1)
+      // ).map((x) => {
+      //   counterX++;
+      //   return counterX;
+      // });
+      // const arrayOfYCoords = Array.from(
+      //   Array(this.visibleWorld.y[1] - this.visibleWorld.y[0] - 1)
+      // ).map((x) => {
+      //   counterY++;
+      //   return counterY;
+      // });
+
+      // console.log({ arrayOfXCoords, arrayOfYCoords });
+      // arrayOfXCoords.forEach((_, i) =>
+      //   drawCell(
+      //     ctx,
+      //     [arrayOfXCoords[i], arrayOfYCoords[i]],
+      //     this.resolution,
+      //     this.liveCells[`xy_${arrayOfXCoords[i]}_${arrayOfYCoords[i]}`],
+      //     this.player,
+      //     this.visibleWorld
+      //   )
+      // );
     }
   }
 
   render() {
-    this.poop();
-    setTimeout(() => {
-      requestAnimationFrame(this.render.bind(this));
-    }, 10);
+    if (this.state) {
+      this.updateGameState();
+      setTimeout(() => {
+        requestAnimationFrame(this.render.bind(this));
+      }, 100);
+    }
   }
   startGame() {
-    this.state = true;
-    const ctx = this.canvas?.current?.getContext('2d');
-    this.world.forEach((row, rowIndex) =>
-      row.map((cell, colIndex) => {
-        if (ctx) {
-          drawCells(
-            ctx,
-            [colIndex, rowIndex],
-            this.resolution,
-            cell === 1 ? true : false
-          );
-        }
-      })
-    );
+    if (!this.state) {
+      this.state = true;
+      const ctx = this.canvas?.current?.getContext('2d');
+      if (ctx) {
+        drawPlayer(ctx, [0, 0], this.resolution);
+      }
+      this.world.forEach((row, rowIndex) =>
+        row.map((cell, colIndex) => {
+          if (ctx) {
+            drawCell(
+              ctx,
+              [colIndex, rowIndex],
+              this.resolution,
+              cell ? true : false,
+              this.player,
+              this.visibleWorld
+            );
+          }
+        })
+      );
 
-    this.render();
+      this.render();
+    }
   }
   endGame() {
     this.state = false;
+  }
+  advanceOneGen() {
+    this.updateGameState();
+  }
+  moveWorldLeft() {
+    const newMinX = this.visibleWorld.x[0] - 1;
+    this.visibleWorld = {
+      x: [newMinX, newMinX + this.COLS],
+      y: [this.visibleWorld.y[0], this.visibleWorld.y[1]],
+    };
   }
   reset() {
     this.liveCells = getLiveCells(this.world);
@@ -243,8 +345,25 @@ const Home: NextPage = () => {
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = 800;
   const height = 800;
-  const resolution = 10;
+  const resolution = 50;
   const myGame = new game(width, height, resolution, canvas);
+
+  useEffect(() => {
+    function onKeyPress(e: KeyboardEvent) {
+      switch (e.key) {
+        case 'h':
+          myGame.moveWorldLeft();
+          break;
+
+        default:
+          break;
+      }
+    }
+    addEventListener('keypress', onKeyPress);
+    return () => {
+      removeEventListener('keypress', onKeyPress);
+    };
+  }, []);
 
   return (
     <div>
@@ -252,6 +371,7 @@ const Home: NextPage = () => {
       <button onClick={() => myGame.startGame()}>START</button>
       <button onClick={() => myGame.endGame()}>StopGame</button>
       <button onClick={() => myGame.reset()}>Reset</button>
+      <button onClick={() => myGame.advanceOneGen()}>+Gen</button>
     </div>
   );
 };
