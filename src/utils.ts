@@ -1,5 +1,4 @@
 import { Cell } from "./revQuadTree.draft";
-import { ParseResult } from "./rle";
 import { Update } from "./types";
 
 export function getCoordinate(id: string): number[] {
@@ -52,12 +51,16 @@ export function createWorld(
     height: number,
     width: number,
     resolution: number
-): number[][] {
-    return Array.from({ length: height / resolution }, () =>
-        Array.from({ length: width / resolution }, () =>
-            Math.floor(Math.random() * 0)
-        )
-    );
+): Cell[] {
+    const world: Cell[] = [];
+    for (let colIndex = 0; colIndex < height / resolution; colIndex++) {
+        for (let rowIndex = 0; rowIndex < width / resolution; rowIndex++) {
+            if (Math.floor(Math.random() * 2) > 0.5) {
+                world.push(new Cell(colIndex, rowIndex, true));
+            }
+        }
+    }
+    return world;
 }
 
 export function getLiveCells(grid: number[][]) {
@@ -91,28 +94,4 @@ export function applyCellupdates(
                 break;
         }
     }
-    console.log("i applied the updates");
-}
-
-export function transformToCells(pattern: ParseResult): Cell[] {
-    const updates: Update[] = [];
-    for (let i = 0; i < pattern.x.length; i++) {
-        const xEl = pattern.x[i];
-        const yEl = pattern.y[i];
-        const id = `xy${xEl}_${yEl}`;
-        const action = "resurrect";
-        updates.push({ id, action });
-    }
-    return updates.map((el, i) => {
-        const [x, y] = getCoordinate(updates[i].id);
-        const state = el.action === "resurrect" ? true : false;
-
-        const cell: Cell = {
-            id: updates[i].id,
-            x: x,
-            y: y,
-            state,
-        };
-        return cell;
-    });
 }

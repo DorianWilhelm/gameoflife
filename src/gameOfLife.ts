@@ -1,10 +1,9 @@
 import { Boundary, Cell, RevQuadTree } from "./revQuadTree.draft";
 import { Coordinate, Update } from "./types";
-import { createWorld, drawCell, getCoordinate } from "./utils";
+import { drawCell, getCoordinate } from "./utils";
 
 export class GameOfLife {
     ctx: CanvasRenderingContext2D | null;
-    world: number[][];
     running: boolean;
     width: number;
     height: number;
@@ -28,16 +27,15 @@ export class GameOfLife {
     ) {
         this.currentTreeNode = currentTreeNode;
         this.activeRegion = new Boundary(
-            [2 * width, 2 * height],
-            width * 4,
-            height * 4
+            [(2 * width) / resolution, (2 * height) / resolution],
+            (width * 4) / resolution,
+            (height * 4) / resolution
         );
         this.globalDick = globalDick;
         this.ctx = ctx;
-        this.world = createWorld(height, width, resolution);
         this.relativeToOrigin = [
-            width / 2 / resolution,
-            height / 2 / resolution,
+            width / (2 * resolution),
+            height / (2 * resolution),
         ];
         this.running = false;
         this.width = width;
@@ -173,13 +171,11 @@ export class GameOfLife {
         if (this.redraw) {
             Array.from({ length: this.ROWS }, (_, x) =>
                 Array.from({ length: this.COLS }, (_, y) => {
-                    const absX = x + this.relativeToOrigin[0];
-                    const absY = y + this.relativeToOrigin[1];
                     drawCell(
                         this.ctx,
                         [x, y],
                         this.resolution,
-                        this.globalDick[`xy${absX}_${absY}`] ? true : false
+                        this.globalDick[`xy${x}_${y}`] ? true : false
                     );
                 })
             );
@@ -204,7 +200,6 @@ export class GameOfLife {
                 state: update.action === "kill" ? false : true,
             };
             if (screen.contains(cell)) {
-                console.log("i am part of the screen which is:", screen);
                 drawCell(
                     this.ctx,
                     [cell.x, cell.y],
@@ -213,55 +208,26 @@ export class GameOfLife {
                 );
             }
         });
-
-        // for (let i = 0; i < this.ROWS; i++) {
-        //     for (let j = 0; j < this.COLS; j++) {
-        //         const absoluteX = this.relativeToOrigin[0] + i;
-        //         const absoluteY = this.relativeToOrigin[1] + j;
-        //         drawCell(
-        //             this.ctx,
-        //             [absoluteX, absoluteY],
-        //             this.resolution,
-        //             Math.floor(Math.random() * 2) === 1 ? true : false
-        //             // this.globalDick[`xy${absoluteX}_${absoluteY}`]
-        //             //     ? true
-        //             //     : false
-        //         );
-        //     }
-        // }
     }
 
     render() {
         if (this.running) {
             this.updateGameState();
-            // this.draw();
         }
     }
     startGame(startingPattern: Cell[]) {
         if (!this.running) {
             this.running = true;
-            // this.world.forEach((row, rowIndex) =>
-            //     row.map((cell, colIndex) => {
-            //         if (this.ctx) {
-            //             drawCell(
-            //                 this.ctx,
-            //                 [colIndex, rowIndex],
-            //                 this.resolution,
-            //                 cell ? true : false
-            //             );
-            //         }
-            //     })
-            // );
 
             startingPattern.forEach((cell) => {
                 this.globalDick[cell.id] = cell;
                 this.currentTreeNode.insert(cell);
-                // drawCell(
-                //     this.ctx,
-                //     [cell.x, cell.y],
-                //     this.resolution,
-                //     cell.state
-                // );
+                drawCell(
+                    this.ctx,
+                    [cell.x, cell.y],
+                    this.resolution,
+                    cell.state
+                );
             });
         }
     }
@@ -270,33 +236,5 @@ export class GameOfLife {
     }
     advanceOneGen() {
         this.updateGameState();
-    }
-    moveLeft() {
-        this.relativeToOrigin = [
-            this.relativeToOrigin[0] - 1,
-            this.relativeToOrigin[1],
-        ];
-        this.redraw = true;
-    }
-    moveRight() {
-        this.relativeToOrigin = [
-            this.relativeToOrigin[0] + 1,
-            this.relativeToOrigin[1],
-        ];
-        this.redraw = true;
-    }
-    moveUp() {
-        this.relativeToOrigin = [
-            this.relativeToOrigin[0],
-            this.relativeToOrigin[1] - 1,
-        ];
-        this.redraw = true;
-    }
-    moveDown() {
-        this.relativeToOrigin = [
-            this.relativeToOrigin[0],
-            this.relativeToOrigin[1] + 1,
-        ];
-        this.redraw = true;
     }
 }

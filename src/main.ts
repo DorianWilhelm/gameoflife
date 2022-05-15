@@ -1,8 +1,6 @@
 import { GameOfLife } from "./gameOfLife";
 import { Boundary, Cell, RevQuadTree } from "./revQuadTree.draft";
-import { parserle } from "./rle";
-import { transformToCells } from "./utils";
-import billiardTable from "./patterns/billiardTable";
+import { createWorld } from "./utils";
 
 const app = document.querySelector("#app")!;
 const globalDick: Record<string, Cell> = {};
@@ -24,35 +22,16 @@ stopButton.onclick = function () {
     myGame.endGame();
 };
 
-const cells = transformToCells(
-    parserle(billiardTable.pattern, billiardTable.x, billiardTable.y)
-);
+const cells: Cell[] = createWorld(height, width, resolution);
+
 startButton.textContent = "Start Game";
 startButton.onclick = function () {
     myGame.startGame(cells);
 };
 
-const tree = new RevQuadTree(new Boundary([400, 400], 800, 800), null, true, 0);
+const tree = new RevQuadTree(new Boundary([40, 40], 800, 800), null, true, 0);
 const myGame = new GameOfLife(ctx, width, height, resolution, tree, globalDick);
-function onKeyPress(e: KeyboardEvent) {
-    switch (e.key) {
-        case "h":
-            myGame.moveLeft();
-            break;
-        case "j":
-            myGame.moveDown();
-            break;
-        case "k":
-            myGame.moveUp();
-            break;
-        case "l":
-            myGame.moveRight();
-            break;
-        default:
-            break;
-    }
-}
-document.addEventListener("keypress", onKeyPress);
+
 function gameLoop(tree: RevQuadTree, game: GameOfLife) {
     myGame.render();
     setTimeout(() => {
